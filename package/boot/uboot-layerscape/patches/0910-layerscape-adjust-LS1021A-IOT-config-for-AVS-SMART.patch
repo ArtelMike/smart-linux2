@@ -1,0 +1,146 @@
+--- a/arch/arm/dts/ls1021a-iot.dtsi
++++ b/arch/arm/dts/ls1021a-iot.dtsi
+@@ -9,7 +9,7 @@
+ #include "ls1021a.dtsi"
+ 
+ / {
+-	model = "LS1021A IOT Board";
++	model = "LS1021A SMART Board";
+ 
+ 	aliases {
+ 		enet2-rgmii-phy = &rgmii_phy1;
+@@ -59,8 +59,11 @@
+ &ifc {
+ 	#address-cells = <2>;
+ 	#size-cells = <1>;
+-	/* NOR Flash on board */
+-	ranges = <0x0 0x0 0x60000000 0x08000000>;
++        /* NOR, NAND Flashes and FPGA on board */
++        ranges = <0x0 0x0 0x0 0x60000000 0x08000000
++            0x2 0x0 0x0 0x7e800000 0x00010000
++            0x3 0x0 0x0 0x7fb00000 0x00000100>;
++
+ 	status = "okay";
+ 
+ 	nor@0,0 {
+@@ -71,6 +74,27 @@
+ 		bank-width = <2>;
+ 		device-width = <1>;
+ 	};
++
++        cpld: board-control@2,0 {
++            compatible = "fsl,ls1043ardb-cpld";
++            reg = <0x2 0x0 0x0000100>;
++        };
++
++};
++
++&ifc {
++    #address-cells = <2>;
++    #size-cells = <1>;
++    /* NAND Flash on board */
++    ranges = <0x0 0x0 0x60000000 0x00010000>;
++    status = "okay";
++    nand@0,0 {
++            compatible = "fsl,ifc-nand";
++            #address-cells = <1>;
++            #size-cells = <1>;
++            reg = <0x0 0x0 0x10000>;
++        };
++
+ };
+ 
+ &lpuart0 {
+--- a/board/freescale/common/sys_eeprom.c
++++ b/board/freescale/common/sys_eeprom.c
+@@ -49,20 +49,29 @@ static struct __attribute__ ((__packed__
+ 	u32 crc;          /* 0x72        CRC32 checksum */
+ #endif
+ #ifdef CONFIG_SYS_I2C_EEPROM_NXID
++        /* ARTEL
++         * NOTE Changes here must also be reflected in the linux application library
++         */
+ 	u8 id[4];         /* 0x00 - 0x03 EEPROM Tag 'NXID' */
+ 	u8 sn[12];        /* 0x04 - 0x0F Serial Number */
+ 	u8 errata[5];     /* 0x10 - 0x14 Errata Level */
+ 	u8 date[6];       /* 0x15 - 0x1a Build Date */
+-	u8 res_0;         /* 0x1b        Reserved */
++	u8 hwrev;         /* 0x1b        Artel Hardware Rev */
+ 	u32 version;      /* 0x1c - 0x1f NXID Version */
+ 	u8 tempcal[8];    /* 0x20 - 0x27 Temperature Calibration Factors */
+ 	u8 tempcalsys[2]; /* 0x28 - 0x29 System Temperature Calibration Factors */
+ 	u8 tempcalflags;  /* 0x2a        Temperature Calibration Flags */
+-	u8 res_1[21];     /* 0x2b - 0x3f Reserved */
++	u8 pn[21];        /* 0x2b - 0x3f Manufacturing Part Number */
+ 	u8 mac_count;     /* 0x40        Number of MAC addresses */
+ 	u8 mac_flag;      /* 0x41        MAC table flags */
+ 	u8 mac[MAX_NUM_PORTS][6];     /* 0x42 - 0xa1 MAC addresses */
+-	u8 res_2[90];     /* 0xa2 - 0xfb Reserved */	
++	u8 brdType;       /* 0xa2        DLMgr BrdType */
++	u8 brdExtType;    /* 0xa3        DLMgr Extended BrdType (future use)*/
++	u32 runTime;      /* 0xa4 - 0xa7 Module runtime in hours*/
++	u8 res_2[64];     /* 0xa8 - 0xfb Reserved */
++        	          /* This is wrong. There should be 20 more bytes assigned */
++                          /* but because this was wrong from the get-go it is      */
++                          /* difficult to change it now...                         */
+ 	u32 crc;          /* 0xfc - 0xff CRC32 checksum */
+ #endif
+ } e;
+@@ -98,10 +107,18 @@ static void show_eeprom(void)
+ 	printf("ID: %c%c%c%c\n", e.id[0], e.id[1], e.id[2], e.id[3]);
+ #endif
+ 
++	/* BoardType*/
++	printf("BoardType: 0x%2X\n", e.brdType);
++	/* BoardExtType*/
++	printf("XBoardType extended: 0x%2X\n", e.brdExtType);
++
+ 	/* Serial number */
+ 	printf("SN: %s\n", e.sn);
++	/* Part number */
++	printf("PN: %s\n", e.pn);
+ 
+ 	/* Errata level. */
++
+ #ifdef CONFIG_SYS_I2C_EEPROM_NXID
+ 	printf("Errata: %s\n", e.errata);
+ #else
+@@ -229,12 +246,14 @@ static int prog_eeprom(void)
+ #endif
+ 
+ 	/* Set the reserved values to 0xFF   */
++#if 0	/* Artel */
+ #ifdef CONFIG_SYS_I2C_EEPROM_NXID
+ 	e.res_0 = 0xFF;
+ 	memset(e.res_1, 0xFF, sizeof(e.res_1));
+ #else
+ 	memset(e.res_0, 0xFF, sizeof(e.res_0));
+ #endif
++#endif
+ 	update_crc();
+ 
+ #if !CONFIG_IS_ENABLED(DM_I2C)
+--- a/board/freescale/ls1021aiot/ls102xa_rcw_sd.cfg
++++ b/board/freescale/ls1021aiot/ls102xa_rcw_sd.cfg
+@@ -2,11 +2,17 @@
+ aa55aa55 01ee0100
+ # serdes protocol
+ 
++#Artel Video Systems SMART board
++0608000A 00000000 00000000 00000000
++20000000 08407920 60025A00 21046000
++00000000 00000000 00000000 0001AF00
++00000504 2824B140 00000000 00000000
++
+ #Default with 2 x SGMII (no SATA)
+-0608000a 00000000 00000000 00000000
+-20000000 08407900 60025a00 21046000
+-00000000 00000000 00000000 20038000
+-20024800 881b1340 00000000 00000000
++#0608000a 00000000 00000000 00000000
++#20000000 08407900 60025a00 21046000
++#00000000 00000000 00000000 20038000
++#20024800 881b1340 00000000 00000000
+ 
+ #SATA set-up
+ #0608000a 00000000 00000000 00000000
