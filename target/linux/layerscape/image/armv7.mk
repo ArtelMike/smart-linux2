@@ -4,7 +4,7 @@
 
 define Device/Default
   PROFILES := Default
-  FILESYSTEMS := squashfs
+  FILESYSTEMS := ext4 squashfs
   IMAGES := firmware.bin sysupgrade.bin
   KERNEL := kernel-bin | uImage none
   KERNEL_INITRAMFS = kernel-bin | gzip | fit gzip $$(DTS_DIR)/$$(DEVICE_DTS).dtb
@@ -76,3 +76,22 @@ define Device/fsl_ls1021a-iot-sdboot
     append-rootfs | pad-to $(LS_SD_IMAGE_SIZE)M | gzip
 endef
 TARGET_DEVICES += fsl_ls1021a-iot-sdboot
+
+define Device/avs_smart-sdboot
+  $(Device/rework-sdcard-images)
+  $(Device/fsl-sdboot)
+  DEVICE_VENDOR := AVS
+  DEVICE_MODEL := AVS-SMART
+  DEVICE_VARIANT := SD Card Boot
+  DEVICE_DTS := ls1021a-iot
+  SUPPORTED_DEVICES :=
+  IMAGE/sdcard.img.gz := \
+    ls-clean | \
+    ls-append-sdhead $(1) | pad-to 4K | \
+    ls-append $(1)-uboot.bin | pad-to 1M | \
+    ls-append $(1)-uboot-env.bin | pad-to 16M | \
+    ls-append-kernel | pad-to $(LS_SD_ROOTFSPART_OFFSET)M | \
+    append-rootfs | pad-to $(LS_SD_IMAGE_SIZE)M | gzip
+endef
+TARGET_DEVICES += avs_smart-sdboot
+

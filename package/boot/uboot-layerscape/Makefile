@@ -123,6 +123,14 @@ define U-Boot/fsl_ls1021a-iot-sdboot
   ENV_SIZE:=0x2000
 endef
 
+define U-Boot/avs_smart-sdboot
+  NAME:=Artel SMART SD Card Boot
+  BUILD_SUBTARGET:=armv7
+  UBOOT_CONFIG:=ls1021aiot_sdcard
+  UBOOT_IMAGE:=u-boot-with-spl-pbl.bin
+  ENV_SIZE:=0x2000
+endef
+
 UBOOT_TARGETS := \
   fsl_ls1012a-frdm \
   fsl_ls1012a-rdb \
@@ -140,7 +148,8 @@ UBOOT_TARGETS := \
   fsl_lx2160a-rdb-sdboot \
   fsl_ls1021a-twr \
   fsl_ls1021a-twr-sdboot \
-  fsl_ls1021a-iot-sdboot
+  fsl_ls1021a-iot-sdboot \
+  avs_smart-sdboot
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(STAGING_DIR_IMAGE)
