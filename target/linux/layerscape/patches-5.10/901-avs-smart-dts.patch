@@ -5,7 +5,7 @@
  
  / {
 -	model = "LS1021A IOT Board";
-+	model = "LS1021A Artel SMART Board";
++	model = "Artel SMART OpenGear";
  
  	sys_mclk: clock-mclk {
  		compatible = "fixed-clock";
