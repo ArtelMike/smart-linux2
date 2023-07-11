@@ -1,0 +1,3 @@
+config AVS_AXI
+	tristate "Artel PCIe Xilinx driver"
+

@@ -1,0 +1,5 @@
+config AVS_LOADFPGA
+	tristate "Artel GPIO-based FPGA loader driver"
+	depends on GENERIC_GPIO
+	select SPI_GPIO
+
