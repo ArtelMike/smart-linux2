@@ -201,3 +201,37 @@
  #define SDRAM_CFG2_FRC_SR		0x80000000
  #define SDRAM_CFG_BI			0x00000001
  
+--- a/board/freescale/ls1021aiot/ls1021aiot.c
++++ b/board/freescale/ls1021aiot/ls1021aiot.c
+@@ -34,7 +34,7 @@ DECLARE_GLOBAL_DATA_PTR;
+ 
+ int checkboard(void)
+ {
+-	puts("Board: LS1021AIOT\n");
++	puts("Board: Artel SMART\n");
+ 
+ #ifndef CONFIG_QSPI_BOOT
+ 	struct ccsr_gur *dcfg = (struct ccsr_gur *)CONFIG_SYS_FSL_GUTS_ADDR;
+@@ -163,6 +163,13 @@ int board_early_init_f(void)
+ }
+ 
+ #ifdef CONFIG_SPL_BUILD
++void artel_clock_debug(void)
++{
++	u32 CLKPSCR = 0x0001f800;
++	u32 clkpcsr_addr = 0x01ee1a00;
++	out_be32(&clkpcsr_addr, CLKPSCR);
++}
++
+ void board_init_f(ulong dummy)
+ {
+ 	/* Clear the BSS */
+@@ -170,6 +177,8 @@ void board_init_f(ulong dummy)
+ 
+ 	get_clocks();
+ 
++	artel_clock_debug();
++
+ 	preloader_console_init();
+ 
+ 	dram_init();
